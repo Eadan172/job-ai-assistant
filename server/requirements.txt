@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pdfplumber
+python-docx
+requests
+httpx
+python-jose[cryptography]
+passlib[bcrypt]

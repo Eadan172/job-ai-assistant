@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 背景圆形 -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+    <linearGradient id="faceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFE4E1"/>
+      <stop offset="100%" style="stop-color:#FFC0CB"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 主背景 -->
+  <circle cx="64" cy="64" r="60" fill="url(#bgGrad)"/>
+  
+  <!-- 机器人头部 -->
+  <rect x="35" y="30" width="58" height="50" rx="12" fill="url(#faceGrad)" stroke="#E8E8E8" stroke-width="2"/>
+  
+  <!-- 天线 -->
+  <line x1="64" y1="30" x2="64" y2="18" stroke="#764ba2" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="64" cy="14" r="5" fill="#FF6B9D"/>
+  
+  <!-- 眼睛 -->
+  <ellipse cx="50" cy="50" rx="8" ry="10" fill="#333"/>
+  <ellipse cx="78" cy="50" rx="8" ry="10" fill="#333"/>
+  <!-- 眼睛高光 -->
+  <circle cx="52" cy="47" r="3" fill="#FFF"/>
+  <circle cx="80" cy="47" r="3" fill="#FFF"/>
+  
+  <!-- 腮红 -->
+  <ellipse cx="40" cy="60" rx="6" ry="4" fill="#FFB6C1" opacity="0.7"/>
+  <ellipse cx="88" cy="60" rx="6" ry="4" fill="#FFB6C1" opacity="0.7"/>
+  
+  <!-- 微笑 -->
+  <path d="M 52 68 Q 64 78 76 68" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+  
+  <!-- 简历图标 -->
+  <rect x="85" y="75" width="30" height="38" rx="3" fill="#FFF" stroke="#667eea" stroke-width="2"/>
+  <line x1="90" y1="85" x2="110" y2="85" stroke="#667eea" stroke-width="2"/>
+  <line x1="90" y1="92" x2="105" y2="92" stroke="#667eea" stroke-width="2"/>
+  <line x1="90" y1="99" x2="108" y2="99" stroke="#667eea" stroke-width="2"/>
+  
+  <!-- 爱心 -->
+  <path d="M 20 85 C 20 75, 35 75, 35 85 C 35 95, 20 105, 20 105 C 20 105, 5 95, 5 85 C 5 75, 20 75, 20 85" fill="#FF6B9D" transform="translate(15, 0) scale(0.8)"/>
+  
+  <!-- 星星装饰 -->
+  <polygon points="100,25 102,31 108,31 103,35 105,41 100,37 95,41 97,35 92,31 98,31" fill="#FFD700"/>
+  <polygon points="25,45 26,48 29,48 27,50 28,53 25,51 22,53 23,50 21,48 24,48" fill="#FFD700" transform="scale(0.8)"/>
+</svg>
