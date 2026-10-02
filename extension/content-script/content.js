@@ -69,6 +69,10 @@ var SITE_CONFIG = {
     }
 };
 
+if (window.JobAISites && typeof window.JobAISites.legacySiteConfig === 'function') {
+    SITE_CONFIG = window.JobAISites.legacySiteConfig();
+}
+
 // 检测当前网站
 function detectCurrentSite() {
     var hostname = window.location.hostname;

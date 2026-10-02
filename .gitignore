@@ -130,6 +130,10 @@ api_keys.json
 logs/
 *.log
 
-# Test files
-test_*.py
-*_test.py
+# Local database and generated files
+data/*.db
+data/*.db-*
+*.sqlite
+*.sqlite3
+
+# Scratch scripts in the repo root. tests/ is tracked.

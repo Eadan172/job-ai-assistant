@@ -1,5 +1,18 @@
+importScripts('outbox.js');
+
 // 后台服务
 console.log('招聘AI助手后台服务已启动');
+
+const CONTENT_FILES = [
+    'content-script/sites/common.js',
+    'content-script/sites/boss.js',
+    'content-script/sites/lagou.js',
+    'content-script/sites/51job.js',
+    'content-script/sites/zhaopin.js',
+    'content-script/page-detector.js',
+    'content-script/auto-capture.js',
+    'content-script/content.js'
+];
 
 // 本地服务配置
 const SERVER_CONFIG = {
@@ -9,7 +22,7 @@ const SERVER_CONFIG = {
 
 // 监听来自 popup 和 content script 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('收到消息:', message);
+    console.log('收到消息:', message && message.action);
     
     switch (message.action) {
         case 'saveJobs':
@@ -29,6 +42,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             return true;
         case 'testConnection':
             testConnection(message.data).then(sendResponse);
+            return true;
+        case 'enqueueJobEvent':
+            enqueueJobEvent(message.event).then(sendResponse);
+            return true;
+        case 'requeueFailedEvents':
+            outbox.requeueFailed().then(function () {
+                return flushOutbox();
+            }).then(sendResponse);
             return true;
         default:
             sendResponse({ success: false, message: '未知操作' });
@@ -146,7 +167,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             // 注入 content script
             chrome.scripting.executeScript({
                 target: { tabId: tabId },
-                files: ['content-script/content.js']
+                files: CONTENT_FILES
             }).catch(error => {
                 console.error('注入 content script 失败:', error);
             });
@@ -180,35 +201,90 @@ chrome.runtime.onInstalled.addListener((details) => {
 // 监听浏览器启动
 chrome.runtime.onStartup.addListener(() => {
     console.log('浏览器启动，初始化招聘AI助手');
+    flushOutbox();
 });
 
-// 定期清理过期数据
-chrome.alarms.create('cleanup', { periodInMinutes: 60 });
+// 岗位历史默认长期保留。以前这里每小时删除 7 天前的记录。
+// 重新加载扩展时清掉已经排上的闹钟，避免旧闹钟继续删数据。
+chrome.alarms.clear('cleanup');
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'cleanup') {
-        cleanupOldData();
-    }
+const outbox = self.JobAIOutbox.createOutbox({
+    storage: self.JobAIOutbox.openIndexedDbStorage(),
+    send: sendJobEvent,
+    now: function () { return Date.now(); }
 });
 
-// 清理过期数据
-async function cleanupOldData() {
-    try {
-        const result = await chrome.storage.local.get('jobs');
-        const jobs = result.jobs || [];
-        
-        // 只保留最近 7 天的数据
-        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        const filteredJobs = jobs.filter(job => {
-            const scrapeTime = new Date(job.scrapeTime).getTime();
-            return scrapeTime > sevenDaysAgo;
+function sendJobEvent(record) {
+    const controller = new AbortController();
+    const timer = setTimeout(function () { controller.abort(); }, 15000);
+    return fetch(SERVER_CONFIG.url + '/api/jobs/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(record.payload),
+        signal: controller.signal
+    }).then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (body) {
+            if (!response.ok) {
+                const error = new Error('HTTP_' + response.status);
+                error.status = response.status;
+                throw error;
+            }
+            const sessionId = body.data && body.data.session_id;
+            if (sessionId) {
+                chrome.storage.local.set({ activeBrowseSessionId: sessionId });
+            }
+            return body;
         });
-        
-        if (filteredJobs.length !== jobs.length) {
-            await chrome.storage.local.set({ jobs: filteredJobs });
-            console.log(`清理了 ${jobs.length - filteredJobs.length} 个过期岗位`);
+    }).catch(function (error) {
+        if (error && error.name === 'AbortError') {
+            const timeout = new Error('TIMEOUT');
+            timeout.name = 'AbortError';
+            throw timeout;
         }
-    } catch (error) {
-        console.error('清理数据失败:', error);
-    }
+        throw error;
+    }).finally(function () {
+        clearTimeout(timer);
+    });
 }
+
+function flushOutbox() {
+    return outbox.flush().then(function (results) {
+        (results || []).forEach(function (result) {
+            if (result.status === 'SENT' && result.fingerprint) {
+                console.log('[JobAI] JOB_FINGERPRINT_GENERATED', String(result.fingerprint).slice(0, 12));
+                console.log('[JobAI] EVENT_SENT', result.id);
+            }
+        });
+        armRetry(results);
+        return { success: true, results: results };
+    }).catch(function (error) {
+        console.error('[JobAI] outbox flush failed', error && error.name);
+        return { success: false, message: error && error.message };
+    });
+}
+
+function armRetry(results) {
+    const times = (results || []).map(function (result) {
+        return result.nextRetryAt;
+    }).filter(Boolean);
+    if (!times.length) {
+        return;
+    }
+    const delay = Math.max(0, Math.min.apply(null, times) - Date.now());
+    setTimeout(flushOutbox, delay);
+}
+
+function enqueueJobEvent(event) {
+    return outbox.enqueue(event).then(function () {
+        console.log('[JobAI] EVENT_QUEUED', event.event_type);
+        return flushOutbox();
+    });
+}
+
+chrome.alarms.create('outbox-flush', { periodInMinutes: 1 });
+chrome.alarms.onAlarm.addListener(function (alarm) {
+    if (alarm.name === 'outbox-flush') {
+        flushOutbox();
+    }
+});
+flushOutbox();

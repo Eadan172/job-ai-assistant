@@ -33,7 +33,16 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content-script/content.js"],
+      "js": [
+        "content-script/sites/common.js",
+        "content-script/sites/boss.js",
+        "content-script/sites/lagou.js",
+        "content-script/sites/51job.js",
+        "content-script/sites/zhaopin.js",
+        "content-script/page-detector.js",
+        "content-script/auto-capture.js",
+        "content-script/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
