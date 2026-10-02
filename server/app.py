@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,10 +7,20 @@ import json
 import os
 import tempfile
 from typing import Optional, List
+from api.jobs import router as job_events_router
+from db.session import check_db, init_db
 from models.llm_adapter import get_llm_adapter
 from utils.resume_parser import parse_resume, extract_resume_info
 
-app = FastAPI(title="招聘AI助手本地服务 V1")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="招聘AI助手本地服务 V1", lifespan=lifespan)
+app.include_router(job_events_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,7 +67,11 @@ async def get_status():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    database_ok = check_db()
+    return {
+        "status": "healthy" if database_ok else "degraded",
+        "database": "ok" if database_ok else "error",
+    }
 
 @app.post("/parse-resume")
 async def parse_resume_file(file: UploadFile = File(...)):
