@@ -215,13 +215,13 @@ INFO:     Application startup complete.
 
 ### 本地数据库
 
-服务启动时会在项目根目录创建 `data/job_ai.db`（SQLite）。打开 Boss直聘、拉勾、前程无忧或智联的岗位详情页时，插件会自动抽取 JD 并写入本地数据库。原来的「点击爬取 → AI 分析」按钮仍然可用，那条路径继续走 Popup 和旧接口。岗位不会再因为超过 7 天被后台自动删除。
+服务启动时会在项目根目录创建 `data/job_ai.db`（SQLite）。打开 Boss直聘、拉勾、前程无忧或智联的岗位详情页时，插件会自动抽取 JD 并写入本地数据库。上传简历并保存 API Key 后，Popup 会显示该岗位的匹配度和依据。原来的「点击爬取 → AI 分析」按钮仍然可用。岗位不会再因为超过 7 天被后台自动删除。
 
 开发时检查：
 
 ```bash
 pip install -r server/requirements.txt
-ruff check server/db server/domain server/services server/api server/utils/fingerprint.py server/db/migrations tests
+ruff check server/db server/domain server/services server/api server/agents server/llm server/utils/fingerprint.py server/db/migrations tests
 mypy
 pytest
 node --test tests/extension/site-adapters.test.js tests/extension/page-detector.test.js tests/extension/outbox.test.js

@@ -1,8 +1,9 @@
-import httpx
 import json
-import os
 import re
-from typing import Optional, Dict, Any
+from typing import Any, Dict
+
+import httpx
+
 
 class LLMAdapter:
     """

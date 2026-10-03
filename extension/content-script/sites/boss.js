@@ -19,11 +19,11 @@
             description: '.job-desc, .job-detail-text, .job-desc-wrapper, .job-detail-section, div[class*="desc"]'
         },
         detail: {
-            title: ['.job-banner .name', 'h1.job-title', '.job-name'],
-            company: ['.company-info .name', '.sider-company .company-name', 'a.company-info-top'],
-            salary: ['.job-banner .salary', '.salary'],
-            location: ['.job-banner .location-address', '.job-area'],
-            body: ['.job-sec-text', '.job-detail-section', '.job-detail']
+            title: ['.job-detail-box .job-name', '.job-banner .name', 'h1.job-title', '.job-name'],
+            company: ['.job-detail-box .company-name', '.company-info .name', '.sider-company .company-name', '.boss-name', 'a.company-info-top'],
+            salary: ['.job-detail-box .job-salary', '.job-banner .salary', '.job-salary', '.salary'],
+            location: ['.job-detail-box .job-address', '.job-banner .location-address', '.job-address', '.job-area'],
+            body: ['.job-sec-text', '.job-detail-box .desc', '.job-detail-section', '.job-detail']
         },
         isDetailUrl: function (host, path) {
             if (host.indexOf('zhipin.com') === -1 || path.indexOf('job_detail') === -1) {

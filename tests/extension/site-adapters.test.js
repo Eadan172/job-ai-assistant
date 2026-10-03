@@ -55,6 +55,36 @@ test('boss detail page requires url, title, company, and body', () => {
     assert.equal(boss.listSelectors.jobItem.includes('company-job-item'), true);
 });
 
+test('boss detail box selectors and visible text win over hidden watermark', () => {
+    const detail = locationFrom('https://www.zhipin.com/job_detail/newer.html');
+    const doc = {
+        querySelector(selector) {
+            if (selector === '.job-detail-box .job-name') {
+                return { textContent: 'Python 工程师' };
+            }
+            if (selector === '.boss-name') {
+                return { textContent: '示例公司' };
+            }
+            if (selector === '.job-salary') {
+                return { textContent: '25-35K' };
+            }
+            if (selector === '.job-address') {
+                return { textContent: '上海' };
+            }
+            if (selector === '.job-sec-text') {
+                return { textContent: '直聘' + BODY, innerText: BODY };
+            }
+            return null;
+        }
+    };
+    assert.equal(boss.isJobDetailPage(detail, doc), true);
+    const job = boss.extractJob(doc);
+    assert.equal(job.title, 'Python 工程师');
+    assert.equal(job.company, '示例公司');
+    assert.equal(job.salary, '25-35K');
+    assert.equal(job.full_text, BODY);
+});
+
 test('lagou, 51job, and zhaopin detail pages', () => {
     const cases = [
         [lagou, 'https://www.lagou.com/wn/jobs/1234567.html', {

@@ -21,6 +21,37 @@ class ResumeRepository:
     def get(self, resume_id: str) -> Optional[ResumeVersion]:
         return self.db.get(ResumeVersion, resume_id)
 
+    def find_original_by_hash(self, *, user_id: str, content_hash: str) -> Optional[ResumeVersion]:
+        return (
+            self.db.query(ResumeVersion)
+            .filter(
+                ResumeVersion.user_id == user_id,
+                ResumeVersion.kind == "original",
+                ResumeVersion.content_hash == content_hash,
+            )
+            .order_by(ResumeVersion.created_at.desc())
+            .first()
+        )
+
+    def save_profile(
+        self,
+        resume_id: str,
+        profile: dict,
+        *,
+        content_hash: str,
+        model_version: str,
+    ) -> ResumeVersion:
+        row = self.get(resume_id)
+        if row is None:
+            raise LookupError(f"resume {resume_id} not found")
+        row.facts_json = {
+            "profile": profile,
+            "profile_content_hash": content_hash,
+            "profile_model_version": model_version,
+        }
+        self.db.flush()
+        return row
+
     def create_original(self, *, user_id: str, filename: str, content_text: str) -> ResumeVersion:
         text = _require_text(content_text)
         row = ResumeVersion(

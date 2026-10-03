@@ -39,6 +39,26 @@ class UserRepository:
         self.db.flush()
         return user
 
+    def set_active_resume(self, user_id: str, resume_version_id: str) -> User:
+        user = self.get_or_create_local_user() if user_id == LOCAL_USER_ID else self.db.get(User, user_id)
+        if user is None:
+            raise LookupError(f"user {user_id} not found")
+        user.active_resume_version_id = resume_version_id
+        user.updated_at = utcnow()
+        self.db.flush()
+        return user
+
+    def update_preferences(self, user_id: str, preferences: dict) -> User:
+        user = self.get_or_create_local_user() if user_id == LOCAL_USER_ID else self.db.get(User, user_id)
+        if user is None:
+            raise LookupError(f"user {user_id} not found")
+        current = dict(user.preferences or {})
+        current.update(preferences)
+        user.preferences = current
+        user.updated_at = utcnow()
+        self.db.flush()
+        return user
+
 
 class BrowseSessionRepository:
     def __init__(self, db: Session) -> None:
@@ -92,6 +112,15 @@ class BrowseSessionRepository:
             row.finalized_at = row.updated_at
         if target == "FAILED":
             row.error_class = error_class or "FAILED"
+        self.db.flush()
+        return row
+
+    def set_resume(self, session_id: str, resume_version_id: str | None) -> BrowseSession:
+        row = self.get(session_id)
+        if row is None:
+            raise LookupError(f"browse session {session_id} not found")
+        row.resume_version_id = resume_version_id
+        row.updated_at = utcnow()
         self.db.flush()
         return row
 

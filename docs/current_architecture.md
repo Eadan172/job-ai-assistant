@@ -293,7 +293,7 @@ Phase 0 只新增文档。后续阶段预计触达：
 
 ## 14. Phase 1 与 Phase 2 之后的实现
 
-第 1–13 节不再单独描述当前仓库。数据底座和详情页自动入库已经接上，匹配、定制简历、导出和模拟沟通还没有。
+第 1–13 节不再单独描述当前仓库。数据底座、详情页自动入库和混合匹配已经接上。定制简历、导出和模拟沟通还没有。
 
 ```text
 招聘详情页
@@ -312,6 +312,15 @@ JobEventService
     │  校验 → 规范化成 JobJD → 现有 fingerprint → upsert Job
     ▼
 SQLite jobs + session_jobs
+    │  提交成功后再入队，匹配失败不会回滚岗位
+    ▼
+ResumeProfile（按 content_hash 缓存）
+    ▼
+MatchAgent：硬条件 + 本地向量 + 一次解释
+    ▼
+SQLite job_matches
+    ▼
+WebSocket /api/events → Popup「当前岗位匹配」
 ```
 
 手动流程仍在：
@@ -326,4 +335,6 @@ SQLite jobs + session_jobs
 
 浏览器侧同一页面指纹（去掉 query 的 URL，加上标题、公司、薪资、地点、正文）不变时不重复入队。服务端再用 `event_id` 和岗位 fingerprint 做幂等。
 
-尚未实现：Match、简历定制、导出、模拟沟通、MCP、LangGraph。详情页选择器还没有在真实招聘站上逐页核对，单测使用按选择器构造的文档。
+匹配分数由 `hybrid-v1` 公式决定，解释模型不能改分数。同一岗位、简历版本、评分版本和偏好哈希如果已有 COMPLETED 记录，直接复用。简历或偏好变化时新增一行，旧行保留。没有简历时状态是 `RESUME_NOT_CONFIGURED`，分数为空。
+
+尚未实现：定制简历、结束浏览、导出、模拟沟通、MCP、LangGraph。Boss 详情页选择器已补上 `.job-detail-box` 这一组，并用 `innerText` 避开隐藏水印。登录后的真实页面仍需要在本机浏览器里再看一遍。

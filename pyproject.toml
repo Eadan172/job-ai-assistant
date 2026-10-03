@@ -9,6 +9,14 @@ select = ["E", "F", "I"]
 [tool.mypy]
 python_version = "3.9"
 mypy_path = "server"
-files = ["server/db", "server/domain", "server/services", "server/api", "server/utils/fingerprint.py"]
+files = [
+    "server/db",
+    "server/domain",
+    "server/services",
+    "server/api",
+    "server/agents",
+    "server/llm",
+    "server/utils/fingerprint.py",
+]
 ignore_missing_imports = true
 warn_unused_ignores = true
