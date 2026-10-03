@@ -93,6 +93,18 @@
             align-items: center;
             gap: 5px;
         }
+        .match-score {
+            font-size: 22px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 6px 0;
+        }
+        .match-line {
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 4px 0;
+            color: #333;
+        }
         .btn {
             width: 100%;
             padding: 12px;
@@ -338,6 +350,11 @@
             <div class="section-title">📍 当前页面</div>
             <div id="current-page">检测中...</div>
         </div>
+
+        <div class="section">
+            <div class="section-title">当前岗位匹配</div>
+            <div id="live-match">打开岗位详情页后会自动匹配。</div>
+        </div>
         
         <div class="section">
             <button class="btn btn-primary" id="scrape-jobs">🔍 爬取当前页面岗位</button>
@@ -448,6 +465,14 @@
             <div class="settings-item">
                 <label>邮箱</label>
                 <input type="text" id="user-email" placeholder="email@example.com" />
+            </div>
+            <div class="settings-item">
+                <label>期望城市</label>
+                <input type="text" id="pref-city" placeholder="上海" />
+            </div>
+            <div class="settings-item">
+                <label>最低月薪(K)</label>
+                <input type="number" id="pref-salary" placeholder="25" />
             </div>
         </div>
         

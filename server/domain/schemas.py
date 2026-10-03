@@ -52,31 +52,92 @@ class JobJD(BaseModel):
     normalized_at: datetime
 
 
-class ResumeSkillFact(BaseModel):
+class ResumeSkill(BaseModel):
     name: str
-    evidence: str
+    proficiency: Optional[str] = None
+    evidence: list[str] = Field(default_factory=list)
+    source_span: Optional[str] = None
+
+
+class WorkExperience(BaseModel):
+    company: str = ""
+    title: str = ""
+    start: Optional[str] = None
+    end: Optional[str] = None
+    description: str = ""
+    source_span: Optional[str] = None
+
+
+class ProjectExperience(BaseModel):
+    name: str = ""
+    role: str = ""
+    description: str = ""
+    source_span: Optional[str] = None
+
+
+class EducationRecord(BaseModel):
+    school: str = ""
+    degree: str = ""
+    major: str = ""
+    source_span: Optional[str] = None
+
+
+class Achievement(BaseModel):
+    text: str
+    source_span: Optional[str] = None
 
 
 class ResumeProfile(BaseModel):
-    skills: list[ResumeSkillFact] = Field(default_factory=list)
-    experiences: list[dict[str, str]] = Field(default_factory=list)
-    projects: list[dict[str, str]] = Field(default_factory=list)
-    education: list[dict[str, str]] = Field(default_factory=list)
-    certificates: list[str] = Field(default_factory=list)
+    summary: Optional[str] = None
+    skills: list[ResumeSkill] = Field(default_factory=list)
+    work_experiences: list[WorkExperience] = Field(default_factory=list)
+    projects: list[ProjectExperience] = Field(default_factory=list)
+    education: list[EducationRecord] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
     languages: list[str] = Field(default_factory=list)
+    achievements: list[Achievement] = Field(default_factory=list)
+    years_of_experience: Optional[float] = None
+
+
+class RiskFlag(BaseModel):
+    type: str
+    severity: str
+    detail: str = ""
+
+
+class SkillGap(BaseModel):
+    name: str
+    status: str
+
+
+class EvidenceLink(BaseModel):
+    jd: str
+    resume: str
+    dimension: str
+    score: float
+    status: str = ""
+
+
+class MatchExplanation(BaseModel):
+    explanation: str
 
 
 class MatchResult(BaseModel):
     overall_score: float
     dimension_scores: dict[str, float]
-    matched_skills: list[str]
-    missing_required_skills: list[str]
-    evidence_from_resume: list[str]
-    risk_flags: list[str]
-    explanation: str
-    model_version: str
+    matched_skills: list[str] = Field(default_factory=list)
+    missing_required_skills: list[str] = Field(default_factory=list)
+    matched_responsibilities: list[str] = Field(default_factory=list)
+    evidence_from_resume: list[str] = Field(default_factory=list)
+    evidence_links: list[EvidenceLink] = Field(default_factory=list)
+    skill_gaps: list[SkillGap] = Field(default_factory=list)
+    risk_flags: list[RiskFlag] = Field(default_factory=list)
+    explanation: Optional[str] = None
+    explanation_status: str = "SKIPPED"
+    model_version: Optional[str] = None
     scoring_version: str
     hard_constraint_passed: bool = True
+    penalty_points: float = 0
 
 
 class ResumeDraft(BaseModel):

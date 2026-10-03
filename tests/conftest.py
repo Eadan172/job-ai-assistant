@@ -14,6 +14,14 @@ import db.session  # noqa: F401
 from db.base import Base
 
 
+@pytest.fixture(autouse=True)
+def _keep_match_off_unless_a_test_opts_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JOB_AI_MATCH_DISABLED", "1")
+    from services.match_queue import configure_clients
+
+    configure_clients(None, None)
+
+
 @pytest.fixture
 def db() -> Iterator[Session]:
     engine = create_engine(

@@ -20,6 +20,14 @@ class JobRepository:
     def get(self, job_id: str) -> Optional[Job]:
         return self.db.get(Job, job_id)
 
+    def links_for_session(self, browse_session_id: str) -> list[SessionJob]:
+        return (
+            self.db.query(SessionJob)
+            .filter(SessionJob.browse_session_id == browse_session_id)
+            .order_by(SessionJob.last_seen_at.desc())
+            .all()
+        )
+
     def get_by_fingerprint(self, fingerprint: str) -> Optional[Job]:
         return self.db.query(Job).filter(Job.fingerprint == fingerprint).one_or_none()
 

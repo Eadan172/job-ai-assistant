@@ -1,6 +1,8 @@
+import os
+
 import pdfplumber
 from docx import Document
-import os
+
 
 def parse_resume(file_path):
     """

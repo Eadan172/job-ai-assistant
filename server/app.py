@@ -1,16 +1,18 @@
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import json
 import os
 import tempfile
-from typing import Optional, List
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from api.jobs import router as job_events_router
+from api.matches import router as match_router
+from api.resumes import router as resume_router
+from api.stream import router as stream_router
 from db.session import check_db, init_db
 from models.llm_adapter import get_llm_adapter
-from utils.resume_parser import parse_resume, extract_resume_info
+from utils.resume_parser import parse_resume
 
 
 @asynccontextmanager
@@ -21,6 +23,9 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(title="招聘AI助手本地服务 V1", lifespan=lifespan)
 app.include_router(job_events_router)
+app.include_router(match_router)
+app.include_router(resume_router)
+app.include_router(stream_router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,7 +84,7 @@ async def parse_resume_file(file: UploadFile = File(...)):
     解析上传的简历文件，返回文本内容
     """
     print(f"\n{'='*60}")
-    print(f"[API] parse-resume 请求")
+    print("[API] parse-resume 请求")
     print(f"[API] 文件名: {file.filename}")
     print(f"[API] 文件类型: {file.content_type}")
     print(f"{'='*60}")
@@ -115,7 +120,7 @@ async def analyze_resume(request: AnalyzeRequest):
     分析简历 - 接收JSON请求
     """
     print(f"\n{'='*60}")
-    print(f"[API] analyze-resume 请求")
+    print("[API] analyze-resume 请求")
     print(f"[API] 模型类型: {request.model_type}")
     print(f"[API] API Key 长度: {len(request.api_key) if request.api_key else 0}")
     print(f"[API] 简历内容长度: {len(request.resume_text) if request.resume_text else 0}")
@@ -159,7 +164,7 @@ async def optimize_resume(request: OptimizeRequest):
     优化简历 - 接收JSON请求
     """
     print(f"\n{'='*60}")
-    print(f"[API] optimize-resume 请求")
+    print("[API] optimize-resume 请求")
     print(f"[API] 模型类型: {request.model_type}")
     print(f"[API] API Key 长度: {len(request.api_key) if request.api_key else 0}")
     print(f"[API] 简历内容长度: {len(request.resume_text) if request.resume_text else 0}")
@@ -195,7 +200,7 @@ async def analyze_jobs(data: dict):
     分析岗位列表，生成汇总报告
     """
     print(f"\n{'='*60}")
-    print(f"[API] analyze-jobs 请求")
+    print("[API] analyze-jobs 请求")
     print(f"{'='*60}")
     
     try:
@@ -235,7 +240,7 @@ async def analyze_job(job_data: dict):
     分析单个岗位
     """
     print(f"\n{'='*60}")
-    print(f"[API] analyze-job 请求")
+    print("[API] analyze-job 请求")
     print(f"{'='*60}")
     
     try:
@@ -271,7 +276,7 @@ async def analyze_job(job_data: dict):
             "model_used": model_type
         }
         
-        print(f"[API] 岗位分析完成")
+        print("[API] 岗位分析完成")
         
         return {"success": True, "data": result}
     except Exception as e:
@@ -284,7 +289,7 @@ async def chat(data: dict):
     AI 对话
     """
     print(f"\n{'='*60}")
-    print(f"[API] chat 请求")
+    print("[API] chat 请求")
     print(f"[API] 模型类型: {data.get('model_type', 'deepseek')}")
     print(f"[API] API Key 长度: {len(data.get('api_key', '')) if data.get('api_key') else 0}")
     print(f"[API] 消息: {data.get('message', '')[:100]}...")
@@ -319,7 +324,7 @@ async def generate_reply(message_data: dict):
     生成自动回复
     """
     print(f"\n{'='*60}")
-    print(f"[API] generate-reply 请求")
+    print("[API] generate-reply 请求")
     print(f"{'='*60}")
     
     try:
@@ -345,7 +350,7 @@ async def generate_reply(message_data: dict):
         
         reply = await llm.chat(prompt)
         
-        print(f"[API] 回复生成完成")
+        print("[API] 回复生成完成")
         
         return {
             "success": True, 
@@ -364,7 +369,7 @@ async def test_connection(data: dict):
     测试模型连接
     """
     print(f"\n{'='*60}")
-    print(f"[API] test-connection 请求")
+    print("[API] test-connection 请求")
     print(f"{'='*60}")
     
     model_type = data.get("model_type", "deepseek")
@@ -387,14 +392,14 @@ async def test_connection(data: dict):
         llm = get_llm_adapter(model_type, api_key)
         
         test_message = "你好，请简短回复'连接成功'"
-        print(f"[API] 发送测试消息...")
+        print("[API] 发送测试消息...")
         
         response = await llm.chat(test_message)
         
         print(f"[API] 模型响应: {response[:100] if response else '空'}...")
         
         if response and len(response) > 0:
-            print(f"[API] 连接测试成功")
+            print("[API] 连接测试成功")
             return {
                 "success": True, 
                 "message": f"连接成功 - 模型: {model_type}",
@@ -402,7 +407,7 @@ async def test_connection(data: dict):
                 "model_used": model_type
             }
         else:
-            print(f"[API] 响应为空")
+            print("[API] 响应为空")
             return {
                 "success": False, 
                 "message": "模型响应为空",
@@ -424,7 +429,7 @@ async def match_resume_job(data: dict):
     匹配简历与岗位
     """
     print(f"\n{'='*60}")
-    print(f"[API] match-resume-job 请求")
+    print("[API] match-resume-job 请求")
     print(f"{'='*60}")
     
     try:
@@ -455,7 +460,7 @@ async def match_resume_job(data: dict):
         
         analysis = await llm.chat(prompt)
         
-        print(f"[API] 匹配分析完成")
+        print("[API] 匹配分析完成")
         
         return {
             "success": True,

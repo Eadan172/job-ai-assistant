@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedData();
     checkServerStatus();
     getCurrentPageInfo();
+    initLiveMatch();
 });
 
 // 标签页切换
@@ -367,6 +368,7 @@ async function handleResumeFile(file) {
         
         state.resume = { name: file.name, type: file.type, size: file.size, content: content };
         displayResumeInfo();
+        registerActiveResume(file.name, content);
         uploadArea.innerHTML = `<div class="upload-icon">✅</div><div class="upload-text">${file.name}<br><small>点击重新上传</small></div>`;
     } catch (error) {
         uploadArea.innerHTML = '<div class="upload-icon">📄</div><div class="upload-text">点击或拖拽上传简历<br><small>支持 PDF / DOCX / TXT</small></div>';
@@ -669,10 +671,13 @@ async function saveSettingsToStorage() {
         apiKey: document.getElementById('api-key').value,
         userName: document.getElementById('user-name').value,
         userPhone: document.getElementById('user-phone').value,
-        userEmail: document.getElementById('user-email').value
+        userEmail: document.getElementById('user-email').value,
+        prefCity: document.getElementById('pref-city').value,
+        prefSalary: document.getElementById('pref-salary').value
     };
     await chrome.storage.local.set({ settings: state.settings });
     console.log('[Popup] 设置已保存, API Key长度:', state.settings.apiKey ? state.settings.apiKey.length : 0);
+    syncMatchSettings(state.settings);
     alert('设置已保存');
 }
 
@@ -686,6 +691,8 @@ async function loadSettings() {
         document.getElementById('user-name').value = state.settings.userName || '';
         document.getElementById('user-phone').value = state.settings.userPhone || '';
         document.getElementById('user-email').value = state.settings.userEmail || '';
+        document.getElementById('pref-city').value = state.settings.prefCity || '';
+        document.getElementById('pref-salary').value = state.settings.prefSalary || '';
         console.log('[Popup] 加载设置, API Key长度:', state.settings.apiKey ? state.settings.apiKey.length : 0);
     }
 }
@@ -710,6 +717,156 @@ function updateStats() {
 }
 
 // 下载文件
+function initLiveMatch() {
+    const root = document.getElementById('live-match');
+    if (!root) {
+        return;
+    }
+    chrome.storage.local.get(['activeBrowseSessionId'], async (stored) => {
+        if (!stored.activeBrowseSessionId) {
+            return;
+        }
+        try {
+            const response = await fetch(`${CONFIG.serverUrl}/api/browse-sessions/${stored.activeBrowseSessionId}/jobs`);
+            const payload = await response.json();
+            const jobs = payload.data && payload.data.jobs ? payload.data.jobs : [];
+            if (jobs.length && jobs[0].match) {
+                renderLiveMatch(Object.assign({ title: jobs[0].title, company: jobs[0].company, job_id: jobs[0].job_id }, jobs[0].match));
+            }
+        } catch (error) {
+            console.log('[JobAI] match list unavailable');
+        }
+    });
+    const socket = new WebSocket(CONFIG.serverUrl.replace(/^http/, 'ws') + '/api/events');
+    socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'JOB_SAVED' || data.type === 'MATCH_QUEUED' || data.type === 'MATCH_PROCESSING' || data.type === 'MATCH_COMPLETED' || data.type === 'MATCH_FAILED' || data.type === 'RESUME_NOT_CONFIGURED') {
+            renderLiveMatch(data);
+        }
+    };
+}
+
+function renderLiveMatch(data) {
+    const root = document.getElementById('live-match');
+    root.replaceChildren();
+    const title = document.createElement('div');
+    title.className = 'match-line';
+    title.textContent = [data.title, data.company].filter(Boolean).join(' · ') || '当前岗位';
+    root.appendChild(title);
+    const status = document.createElement('div');
+    status.className = 'match-line';
+    status.textContent = '状态：' + matchStatusText(data.status || data.type);
+    root.appendChild(status);
+    if (data.status === 'RESUME_NOT_CONFIGURED' || data.type === 'RESUME_NOT_CONFIGURED') {
+        const hint = document.createElement('div');
+        hint.className = 'match-line';
+        hint.textContent = '尚未配置简历。请上传简历后重新匹配。';
+        root.appendChild(hint);
+    } else if (typeof data.overall_score === 'number') {
+        const score = document.createElement('div');
+        score.className = 'match-score';
+        score.textContent = '匹配度：' + data.overall_score + '%';
+        root.appendChild(score);
+    }
+    appendMatchLine(root, '技能匹配', (data.matched_skills || []).join('、'));
+    appendMatchLine(root, '缺失', (data.missing_required_skills || []).join('、'));
+    appendMatchLine(root, '证据', (data.evidence_from_resume || []).slice(0, 3).join('；'));
+    if (data.explanation) {
+        const explanation = document.createElement('div');
+        explanation.className = 'match-line';
+        explanation.textContent = data.explanation;
+        root.appendChild(explanation);
+    }
+    if (data.job_id) {
+        const button = document.createElement('button');
+        button.className = 'btn btn-secondary';
+        button.textContent = '重新匹配';
+        button.addEventListener('click', () => rematchJob(data.job_id));
+        root.appendChild(button);
+    }
+}
+
+function appendMatchLine(root, label, value) {
+    if (!value) {
+        return;
+    }
+    const line = document.createElement('div');
+    line.className = 'match-line';
+    line.textContent = label + '：' + value;
+    root.appendChild(line);
+}
+
+function matchStatusText(status) {
+    const labels = {
+        COMPLETED: '已完成',
+        MATCH_COMPLETED: '已完成',
+        PROCESSING: '匹配中',
+        MATCH_PROCESSING: '匹配中',
+        PENDING: '排队中',
+        MATCH_QUEUED: '排队中',
+        FAILED: '匹配失败',
+        MATCH_FAILED: '匹配失败',
+        RESUME_NOT_CONFIGURED: '尚未配置简历',
+        JOB_SAVED: '已保存',
+        SAVED: '已保存'
+    };
+    return labels[status] || status || '等待岗位';
+}
+
+async function rematchJob(jobId) {
+    const response = await fetch(`${CONFIG.serverUrl}/api/jobs/${jobId}/match`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true })
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+        return;
+    }
+    const detail = await fetch(`${CONFIG.serverUrl}/api/jobs/${jobId}/match`);
+    const match = await detail.json();
+    if (match.data) {
+        renderLiveMatch(Object.assign({ job_id: jobId }, match.data, payload.data || {}));
+    }
+}
+
+async function registerActiveResume(filename, content) {
+    if (!content) {
+        return;
+    }
+    try {
+        await fetch(`${CONFIG.serverUrl}/api/resumes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: filename, content_text: content })
+        });
+    } catch (error) {
+        console.log('[JobAI] resume save failed');
+    }
+}
+
+async function syncMatchSettings(settings) {
+    const cities = String(settings.prefCity || '').split(/[,，]/).map((item) => item.trim()).filter(Boolean);
+    const salary = String(settings.prefSalary || '').trim();
+    try {
+        await fetch(`${CONFIG.serverUrl}/api/settings/llm`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model_type: settings.modelType || 'deepseek', api_key: settings.apiKey || '' })
+        });
+        await fetch(`${CONFIG.serverUrl}/api/preferences`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                locations: cities,
+                min_salary_k: salary ? Number(salary) : null
+            })
+        });
+    } catch (error) {
+        console.log('[JobAI] settings sync failed');
+    }
+}
+
 function downloadFile(content, filename, type) {
     const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);

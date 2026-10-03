@@ -33,7 +33,12 @@
         }
         for (var i = 0; i < selectors.length; i += 1) {
             var el = typeof doc.querySelector === 'function' ? doc.querySelector(selectors[i]) : null;
-            var text = el && el.textContent ? String(el.textContent).trim() : '';
+            var text = '';
+            if (el && typeof el.innerText === 'string' && el.innerText.trim()) {
+                text = el.innerText.trim();
+            } else if (el && el.textContent) {
+                text = String(el.textContent).trim();
+            }
             if (text) {
                 return text;
             }

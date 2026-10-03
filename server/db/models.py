@@ -33,6 +33,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), default="")
     phone: Mapped[str] = mapped_column(String(50), default="")
     preferences: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    active_resume_version_id: Mapped[Optional[str]] = mapped_column(String(36))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -134,30 +135,34 @@ class SessionJob(Base):
 
 
 class JobMatch(Base):
+    """One attempt for a job, resume version, scoring version, and preference hash.
+
+    A completed row is never rewritten. A later resume, formula, or preference
+    set inserts another row. ``resume_versions.job_id`` stays a plain string;
+    ``active_resume_version_id`` is also a plain string so SQLite has no cycle.
+    """
+
     __tablename__ = "job_matches"
-    __table_args__ = (
-        UniqueConstraint(
-            "job_id",
-            "resume_version_id",
-            "scoring_version",
-            name="uq_match_version",
-        ),
-    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id"), index=True)
-    resume_version_id: Mapped[str] = mapped_column(ForeignKey("resume_versions.id"), index=True)
+    resume_version_id: Mapped[Optional[str]] = mapped_column(ForeignKey("resume_versions.id"), index=True)
     browse_session_id: Mapped[Optional[str]] = mapped_column(ForeignKey("browse_sessions.id"), index=True)
-    overall_score: Mapped[float] = mapped_column(Float, default=0)
+    overall_score: Mapped[Optional[float]] = mapped_column(Float)
     dimension_scores: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     matched_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     missing_required_skills: Mapped[list[str]] = mapped_column(JSON, default=list)
     evidence_from_resume: Mapped[list[str]] = mapped_column(JSON, default=list)
-    risk_flags: Mapped[list[str]] = mapped_column(JSON, default=list)
-    explanation: Mapped[str] = mapped_column(Text, default="")
+    risk_flags: Mapped[list[Any]] = mapped_column(JSON, default=list)
+    explanation: Mapped[Optional[str]] = mapped_column(Text)
+    explanation_status: Mapped[str] = mapped_column(String(32), default="")
     hard_constraint_passed: Mapped[bool] = mapped_column(Boolean, default=True)
     model_version: Mapped[str] = mapped_column(String(100), default="")
     scoring_version: Mapped[str] = mapped_column(String(50), default="")
+    preferences_hash: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(32), default="COMPLETED", index=True)
+    result_json: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON)
+    error_class: Mapped[Optional[str]] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     job: Mapped[Job] = relationship(back_populates="matches")
